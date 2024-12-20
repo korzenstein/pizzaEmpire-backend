@@ -7,8 +7,8 @@ require("dotenv").config();
 const app = express();
 // Enable CORS
 const allowedOrigins = [
-  "http://localhost:3000", // Local frontend during development
-  process.env.FRONTEND_URL, // Frontend deployed on Netlify
+  "http://localhost:3000", 
+  process.env.FRONTEND_URL, 
 ];
 
 
