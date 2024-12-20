@@ -7,8 +7,8 @@ require("dotenv").config();
 const app = express();
 // Enable CORS
 const allowedOrigins = [
-  "http://localhost:3000", 
-  "https://pizzaempire.netlify.app/", 
+  "http://localhost:3000",
+  "https://pizzaempire.netlify.app",
 ];
 
 app.use(
