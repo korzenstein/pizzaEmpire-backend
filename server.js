@@ -8,14 +8,13 @@ const app = express();
 // Enable CORS
 const allowedOrigins = [
   "http://localhost:3000", 
-  process.env.FRONTEND_URL, 
+  "https://pizzaempire.netlify.app/", 
 ];
-
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      console.log(`Request Origin: ${origin}`);
+      console.log(`CORS request from origin: ${origin}`); // Debugging
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -23,7 +22,7 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true, 
+    credentials: true, // Allow cookies or auth headers if needed
   })
 );
 
