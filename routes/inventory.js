@@ -14,18 +14,31 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Fetch inventory for a specific player
 router.get("/:playerID", async (req, res) => {
   const { playerID } = req.params;
 
   try {
+    // Join Inventory with Ingredients to include the cost of each ingredient
     const { data, error } = await supabase
       .from("Inventory")
-      .select("*")
+      .select(`
+        ingredient,
+        quantity,
+        Ingredients (cost)
+      `)
       .eq("playerID", playerID);
 
     if (error) throw error;
 
-    res.status(200).json(data);
+    // Format the response to include the cost alongside each inventory item
+    const formattedData = data.map((item) => ({
+      ingredient: item.ingredient,
+      quantity: item.quantity,
+      cost: item.Ingredients.cost,
+    }));
+
+    res.status(200).json(formattedData);
   } catch (error) {
     console.error("Error in GET /inventory/:playerID:", error.message);
     res.status(500).json({ error: error.message });
@@ -33,15 +46,29 @@ router.get("/:playerID", async (req, res) => {
 });
 
 
+// Buy an ingredient for a player
 router.post("/:playerID/buy", async (req, res) => {
   const { playerID } = req.params;
-  const { ingredient, cost } = req.body;
+  const { ingredient } = req.body;
 
-  if (!ingredient || cost === undefined) {
-    return res.status(400).json({ error: "Ingredient and cost are required." });
+  if (!ingredient) {
+    return res.status(400).json({ error: "Ingredient is required." });
   }
 
   try {
+    // Fetch the cost of the ingredient
+    const { data: ingredientData, error: ingredientError } = await supabase
+      .from("Ingredients")
+      .select("cost")
+      .eq("ingredient", ingredient)
+      .single();
+
+    if (ingredientError || !ingredientData) {
+      return res.status(404).json({ error: "Ingredient not found." });
+    }
+
+    const cost = ingredientData.cost;
+
     // Fetch the player's current income
     const { data: player, error: playerError } = await supabase
       .from("Players")
@@ -49,7 +76,10 @@ router.post("/:playerID/buy", async (req, res) => {
       .eq("playerID", playerID)
       .single();
 
-    if (playerError || !player) throw new Error("Player not found.");
+    if (playerError || !player) {
+      return res.status(404).json({ error: "Player not found." });
+    }
+
     if (player.income < cost) {
       return res.status(400).json({ error: "Not enough income." });
     }
@@ -62,7 +92,7 @@ router.post("/:playerID/buy", async (req, res) => {
 
     if (incomeUpdateError) throw new Error("Failed to update player income.");
 
-    // Increment the ingredient quantity in the inventory
+    // Check if the ingredient already exists in the inventory
     const { data: existingInventory, error: inventoryFetchError } = await supabase
       .from("Inventory")
       .select("quantity")
@@ -70,13 +100,19 @@ router.post("/:playerID/buy", async (req, res) => {
       .eq("ingredient", ingredient)
       .single();
 
-    if (inventoryFetchError) throw new Error("Failed to fetch inventory.");
+    if (inventoryFetchError && inventoryFetchError.message !== "Row not found") {
+      throw new Error("Failed to fetch inventory.");
+    }
 
     const newQuantity = (existingInventory?.quantity || 0) + 1;
 
+    // Update or insert the inventory item
     const { error: inventoryUpdateError } = await supabase
       .from("Inventory")
-      .upsert({ playerID, ingredient, quantity: newQuantity }, { onConflict: ["playerID", "ingredient"] });
+      .upsert(
+        { playerID, ingredient, quantity: newQuantity },
+        { onConflict: ["playerID", "ingredient"] } // Prevent duplicate rows
+      );
 
     if (inventoryUpdateError) throw new Error("Failed to update inventory.");
 
