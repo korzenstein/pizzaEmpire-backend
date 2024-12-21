@@ -25,7 +25,7 @@ router.get("/:playerID", async (req, res) => {
       .select(`
         ingredient,
         quantity,
-        Ingredients (cost)
+        Ingredients (type, cost)
       `)
       .eq("playerID", playerID);
 
@@ -35,6 +35,7 @@ router.get("/:playerID", async (req, res) => {
     const formattedData = data.map((item) => ({
       ingredient: item.ingredient,
       quantity: item.quantity,
+      type: item.Ingredients.type,
       cost: item.Ingredients.cost,
     }));
 
